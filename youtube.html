@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>極簡無干擾 YouTube 播放器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fef2f2',
+                            100: '#ffe1e1',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        /* 自訂滾動條 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 9999px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-950 dark:text-gray-100 min-h-screen transition-colors duration-300 flex flex-col">
+
+    <!-- 頂部導航欄 -->
+    <header class="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-lg shadow-brand-600/30">
+                    <i class="fa-solid font-bold text-xl fa-play"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">純粹播放器</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">專注學習與影音體驗</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- 快捷鍵說明按鈕 -->
+                <button id="shortcuts-btn" title="快捷鍵說明" class="p-2.5 rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <i class="fa-solid fa-keyboard text-lg"></i>
+                </button>
+                <!-- 主題切換按鈕 -->
+                <button id="theme-toggle" title="切換主題" class="p-2.5 rounded-lg text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-6">
+
+        <!-- 網址輸入區域 -->
+        <section class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-800 transition-all">
+            <form id="url-form" class="flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-grow">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-link"></i>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="yt-url-input" 
+                        placeholder="貼上 YouTube 網址或影片 ID (例如: https://www.youtube.com/watch?v=... 或 dQw4w9WgXcQ)" 
+                        class="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm sm:text-base transition text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                        required
+                    >
+                    <button type="button" id="clear-input-btn" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <button 
+                    type="submit" 
+                    class="bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-medium px-6 py-3 rounded-xl transition shadow-md shadow-brand-600/20 flex items-center justify-center space-x-2 whitespace-nowrap"
+                >
+                    <i class="fa-solid fa-play text-sm"></i>
+                    <span>播放影片</span>
+                </button>
+            </form>
+
+            <!-- 播放控制開關選項 -->
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800/60 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                <div class="flex items-center space-x-6">
+                    <label class="flex items-center space-x-2 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition">
+                        <input type="checkbox" id="autoplay-toggle" class="w-4 h-4 text-brand-600 rounded border-gray-300 dark:border-gray-700 focus:ring-brand-500 dark:bg-gray-800">
+                        <span>自動播放</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition">
+                        <input type="checkbox" id="loop-toggle" class="w-4 h-4 text-brand-600 rounded border-gray-300 dark:border-gray-700 focus:ring-brand-500 dark:bg-gray-800">
+                        <span>單曲循環</span>
+                    </label>
+                </div>
+                <div class="text-gray-400 dark:text-gray-500 text-xs">
+                    <i class="fa-solid fa-shield-halved mr-1"></i> 已自動移除留言區、推薦欄與側邊攔
+                </div>
+            </div>
+        </section>
+
+        <!-- 訊息提示 (錯誤/狀態) -->
+        <div id="toast-message" class="hidden rounded-xl p-4 border transition-all duration-300 flex items-center space-x-3">
+            <i id="toast-icon" class="fa-solid text-lg"></i>
+            <span id="toast-text" class="text-sm font-medium"></span>
+        </div>
+
+        <!-- 影音播放視窗區塊 -->
+        <section id="player-container" class="relative w-full rounded-2xl overflow-hidden bg-black shadow-2xl border border-gray-800 transition-all flex flex-col justify-center items-center min-h-[250px] sm:min-h-[450px]">
+            <!-- 未播放時的佔位畫面 -->
+            <div id="placeholder-ui" class="flex flex-col items-center justify-center p-8 text-center space-y-4">
+                <div class="w-20 h-20 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-500">
+                    <i class="fa-solid fa-play text-3xl ml-1"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-300">準備好享受無干擾視聽體驗了嗎？</h2>
+                    <p class="text-sm text-gray-500 max-w-md mt-1">請在上方輸入框貼上 YouTube 連結或影片 ID，點擊播放即可開啟純粹觀影視界。</p>
+                </div>
+            </div>
+
+            <!-- YouTube Iframe 播放器容器 -->
+            <div id="iframe-wrapper" class="hidden w-full h-full aspect-video">
+                <iframe 
+                    id="yt-iframe" 
+                    class="w-full h-full border-0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen
+                ></iframe>
+            </div>
+        </section>
+
+        <!-- 播放歷史紀錄區塊 -->
+        <section class="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-800 transition-all">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-clock-rotate-left text-brand-500"></i>
+                    <h3 class="font-semibold text-base">最近觀看紀錄</h3>
+                </div>
+                <button id="clear-history-btn" class="text-xs text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>清除紀錄</span>
+                </button>
+            </div>
+
+            <!-- 歷史紀錄清單 -->
+            <div id="history-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- 由 JavaScript 動態生成項目 -->
+            </div>
+
+            <!-- 無紀錄時的顯示 -->
+            <div id="empty-history" class="text-center py-8 text-gray-400 dark:text-gray-600 text-sm">
+                尚無觀看紀錄
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="border-t border-gray-200 dark:border-gray-800 py-6 text-center text-xs text-gray-500 dark:text-gray-400 mt-auto">
+        <p>極簡無干擾播放器 &copy; 2026 | Pure YouTube Distraction-Free Experience</p>
+    </footer>
+
+    <!-- 快捷鍵對話盒 Modal -->
+    <div id="shortcuts-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative transform transition-all">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-8 h-8 rounded-lg bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                    <i class="fa-solid fa-keyboard"></i>
+                </div>
+                <h3 class="font-bold text-lg">YouTube 鍵盤快捷鍵說明</h3>
+            </div>
+            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-medium">播放 / 暫停</span>
+                    <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">k</kbd> 或 <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">Space</kbd>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-medium">倒退 10 秒 / 前進 10 秒</span>
+                    <div>
+                        <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">j</kbd> / 
+                        <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">l</kbd>
+                    </div>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-medium">靜音 / 取消靜音</span>
+                    <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">m</kbd>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800">
+                    <span class="font-medium">全螢幕切換</span>
+                    <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">f</kbd>
+                </div>
+                <div class="flex justify-between py-1.5">
+                    <span class="font-medium">字幕切換 (開啟/關閉)</span>
+                    <kbd class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700 text-xs font-mono">c</kbd>
+                </div>
+            </div>
+            <div class="mt-6">
+                <button id="modal-ok-btn" class="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium py-2.5 rounded-xl transition text-sm">
+                    瞭解了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主應用程式邏輯 JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM 元素引用
+            const urlForm = document.getElementById('url-form');
+            const urlInput = document.getElementById('yt-url-input');
+            const clearInputBtn = document.getElementById('clear-input-btn');
+            const autoplayToggle = document.getElementById('autoplay-toggle');
+            const loopToggle = document.getElementById('loop-toggle');
+            const iframeWrapper = document.getElementById('iframe-wrapper');
+            const placeholderUi = document.getElementById('placeholder-ui');
+            const ytIframe = document.getElementById('yt-iframe');
+            const historyList = document.getElementById('history-list');
+            const emptyHistory = document.getElementById('empty-history');
+            const clearHistoryBtn = document.getElementById('clear-history-btn');
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const shortcutsBtn = document.getElementById('shortcuts-btn');
+            const shortcutsModal = document.getElementById('shortcuts-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const modalOkBtn = document.getElementById('modal-ok-btn');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastText = document.getElementById('toast-text');
+
+            // 狀態變數
+            let currentVideoId = '';
+            let watchHistory = JSON.parse(localStorage.getItem('yt_clean_history') || '[]');
+
+            // 初始化設定
+            initTheme();
+            renderHistory();
+
+            // --- 網址解析函數 ---
+            // 支援：標準網址, 短網址, 嵌入式網址, 移動版網址, 直播網址, Shorts, 或純 11 碼 ID
+            function extractVideoId(url) {
+                if (!url) return null;
+                url = url.trim();
+
+                // 若直接輸入 11 碼 ID
+                if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+                    return url;
+                }
+
+                // 各種網址格式的正則表達式
+                const patterns = [
+                    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
+                    /youtube\.com\/shorts\/([^"&?\/\s]{11})/,
+                    /youtube\.com\/live\/([^"&?\/\s]{11})/
+                ];
+
+                for (let pattern of patterns) {
+                    const match = url.match(pattern);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+                }
+
+                return null;
+            }
+
+            // --- 播放影片邏輯 ---
+            function playVideo(videoId) {
+                if (!videoId) return;
+
+                currentVideoId = videoId;
+                const isAutoplay = autoplayToggle.checked ? 1 : 0;
+                const isLoop = loopToggle.checked ? 1 : 0;
+
+                // 建立無干擾嵌入 URL
+                // rel=0: 不顯示相關影片 (或僅顯示同頻道)
+                // modestbranding=1: 隱藏大 Logo
+                // iv_load_policy=3: 隱藏影片註解/卡片
+                let embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${isAutoplay}&rel=0&modestbranding=1&iv_load_policy=3`;
+                
+                if (isLoop) {
+                    embedUrl += `&loop=1&playlist=${videoId}`;
+                }
+
+                // 更新 Iframe 與顯示
+                ytIframe.src = embedUrl;
+                placeholderUi.classList.add('hidden');
+                iframeWrapper.classList.remove('hidden');
+
+                // 儲存至觀看歷史
+                saveToHistory(videoId);
+
+                showToast('已載入影片，享用無干擾視聽時光！', 'success');
+            }
+
+            // --- 本地儲存歷史紀錄處理 ---
+            function saveToHistory(videoId) {
+                // 移重複項並推入頂部
+                watchHistory = watchHistory.filter(item => item.id !== videoId);
+                watchHistory.unshift({
+                    id: videoId,
+                    timestamp: new Date().getTime()
+                });
+
+                // 最多留 12 筆
+                if (watchHistory.length > 12) {
+                    watchHistory = watchHistory.slice(0, 12);
+                }
+
+                localStorage.setItem('yt_clean_history', JSON.stringify(watchHistory));
+                renderHistory();
+            }
+
+            function renderHistory() {
+                historyList.innerHTML = '';
+
+                if (watchHistory.length === 0) {
+                    emptyHistory.classList.remove('hidden');
+                    return;
+                }
+
+                emptyHistory.classList.add('hidden');
+
+                watchHistory.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'group relative bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-xl overflow-hidden hover:shadow-md transition-all flex flex-col justify-between cursor-pointer';
+                    
+                    // 使用 YouTube 預設縮圖 API
+                    const thumbnailUrl = `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`;
+
+                    card.innerHTML = `
+                        <div class="relative aspect-video bg-gray-900 overflow-hidden">
+                            <img src="${thumbnailUrl}" alt="Video Thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x225/1f2937/ffffff?text=YouTube+Video'">
+                            <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div class="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                                    <i class="fa-solid fa-play ml-0.5"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-mono text-gray-700 dark:text-gray-300 truncate mr-2">ID: ${item.id}</span>
+                            <button class="delete-item-btn text-gray-400 hover:text-red-500 p-1" title="刪除此紀錄" data-id="${item.id}">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    // 點擊卡片播放
+                    card.addEventListener('click', (e) => {
+                        if (!e.target.closest('.delete-item-btn')) {
+                            urlInput.value = item.id;
+                            checkInputState();
+                            playVideo(item.id);
+                        }
+                    });
+
+                    // 刪除單一紀錄
+                    const deleteBtn = card.querySelector('.delete-item-btn');
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        watchHistory = watchHistory.filter(h => h.id !== item.id);
+                        localStorage.setItem('yt_clean_history', JSON.stringify(watchHistory));
+                        renderHistory();
+                    });
+
+                    historyList.appendChild(card);
+                });
+            }
+
+            // --- 事件監聽器設定 ---
+
+            // 表單提交處理
+            urlForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const inputVal = urlInput.value;
+                const videoId = extractVideoId(inputVal);
+
+                if (videoId) {
+                    playVideo(videoId);
+                } else {
+                    showToast('請輸入有效的 YouTube 網址或影片 ID', 'error');
+                }
+            });
+
+            // 輸入框清除按鈕邏輯
+            urlInput.addEventListener('input', checkInputState);
+            
+            function checkInputState() {
+                if (urlInput.value.length > 0) {
+                    clearInputBtn.classList.remove('hidden');
+                } else {
+                    clearInputBtn.classList.add('hidden');
+                }
+            }
+
+            clearInputBtn.addEventListener('click', () => {
+                urlInput.value = '';
+                checkInputState();
+                urlInput.focus();
+            });
+
+            // 清除全部歷史紀錄
+            clearHistoryBtn.addEventListener('click', () => {
+                if (watchHistory.length === 0) return;
+                
+                watchHistory = [];
+                localStorage.removeItem('yt_clean_history');
+                renderHistory();
+                showToast('已清除觀看歷史紀錄', 'info');
+            });
+
+            // 自動播放 / 循環開關狀態改變時，若正在播放則重新加載
+            autoplayToggle.addEventListener('change', refreshCurrentVideo);
+            loopToggle.addEventListener('change', refreshCurrentVideo);
+
+            function refreshCurrentVideo() {
+                if (currentVideoId) {
+                    playVideo(currentVideoId);
+                }
+            }
+
+            // 主題切換 (Dark / Light)
+            function initTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'light') {
+                    document.documentElement.classList.remove('dark');
+                    themeIcon.className = 'fa-solid fa-sun text-lg';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    themeIcon.className = 'fa-solid fa-moon text-lg';
+                }
+            }
+
+            themeToggleBtn.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    themeIcon.className = 'fa-solid fa-sun text-lg';
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    themeIcon.className = 'fa-solid fa-moon text-lg';
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+
+            // 快捷鍵 Modal 控制
+            shortcutsBtn.addEventListener('click', () => {
+                shortcutsModal.classList.remove('hidden');
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                shortcutsModal.classList.add('hidden');
+            });
+
+            modalOkBtn.addEventListener('click', () => {
+                shortcutsModal.classList.add('hidden');
+            });
+
+            shortcutsModal.addEventListener('click', (e) => {
+                if (e.target === shortcutsModal) {
+                    shortcutsModal.classList.add('hidden');
+                }
+            });
+
+            // 顯示狀態提示訊息 (Toast)
+            function showToast(message, type = 'info') {
+                toastText.textContent = message;
+                
+                // 重置樣式
+                toastMessage.className = 'rounded-xl p-4 border transition-all duration-300 flex items-center space-x-3 shadow-lg';
+                
+                if (type === 'error') {
+                    toastMessage.classList.add('bg-red-50', 'dark:bg-red-950/80', 'border-red-200', 'dark:border-red-800', 'text-red-700', 'dark:text-red-300');
+                    toastIcon.className = 'fa-solid fa-circle-exclamation text-red-500';
+                } else if (type === 'success') {
+                    toastMessage.classList.add('bg-emerald-50', 'dark:bg-emerald-950/80', 'border-emerald-200', 'dark:border-emerald-800', 'text-emerald-700', 'dark:text-emerald-300');
+                    toastIcon.className = 'fa-solid fa-circle-check text-emerald-500';
+                } else {
+                    toastMessage.classList.add('bg-blue-50', 'dark:bg-blue-950/80', 'border-blue-200', 'dark:border-blue-800', 'text-blue-700', 'dark:text-blue-300');
+                    toastIcon.className = 'fa-solid fa-circle-info text-blue-500';
+                }
+
+                toastMessage.classList.remove('hidden');
+
+                setTimeout(() => {
+                    toastMessage.classList.add('hidden');
+                }, 3500);
+            }
+        });
+    </script>
+</body>
+</html>
